@@ -101,7 +101,9 @@ def undo_session(session_id: str) -> ExecuteResult:
     history: list[dict] = json.loads(HISTORY_FILE.read_text())
     session = next((s for s in history if s["session_id"] == session_id), None)
     if not session:
-        raise ValueError(f"Session {session_id} not found in history")
+        raise ValueError(f"Session {session_id} not found. It may have expired or never been created.")
+    if session.get("undone"):
+        raise ValueError(f"Session {session_id} was already undone. Your files have already been restored.")
 
     moved: list[str] = []
     skipped: list[str] = []
@@ -122,9 +124,12 @@ def undo_session(session_id: str) -> ExecuteResult:
         except OSError as exc:
             errors.append(f"{entry['source']}: {exc}")
 
-    # Remove session from history after undo
-    updated = [s for s in history if s["session_id"] != session_id]
-    HISTORY_FILE.write_text(json.dumps(updated, indent=2))
+    # Mark session as undone (keep it so re-undo attempts get a clear message)
+    for s in history:
+        if s["session_id"] == session_id:
+            s["undone"] = True
+            break
+    HISTORY_FILE.write_text(json.dumps(history, indent=2))
 
     return ExecuteResult(moved=moved, skipped=skipped, errors=errors)
 

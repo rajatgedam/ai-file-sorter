@@ -599,7 +599,7 @@ class TestUndo:
         )
         assert response.status_code == 404
 
-    def test_undo_removes_session_from_history(self, tmp_path: Path):
+    def test_undo_marks_session_as_undone(self, tmp_path: Path):
         from src.lib.file_mover import HISTORY_FILE, execute_moves, undo_session
         from src.types import ProposedMove
 
@@ -617,7 +617,27 @@ class TestUndo:
 
         import json as _json
         history = _json.loads(HISTORY_FILE.read_text())
-        assert not any(s["session_id"] == result.session_id for s in history)
+        session = next(s for s in history if s["session_id"] == result.session_id)
+        assert session["undone"] is True
+
+    def test_double_undo_raises_clear_error(self, tmp_path: Path):
+        from src.lib.file_mover import HISTORY_FILE, execute_moves, undo_session
+        from src.types import ProposedMove
+
+        if HISTORY_FILE.exists():
+            HISTORY_FILE.unlink()
+
+        src = tmp_path / "c.txt"
+        src.write_text("data")
+        dest = tmp_path / "Docs" / "c.txt"
+
+        result = execute_moves(
+            [ProposedMove(source=str(src), destination=str(dest), reason="doc", approved=True)]
+        )
+        undo_session(result.session_id)
+
+        with pytest.raises(ValueError, match="already undone"):
+            undo_session(result.session_id)
 
 
 # ---------------------------------------------------------------------------

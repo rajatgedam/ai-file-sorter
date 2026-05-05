@@ -59,7 +59,14 @@ function App() {
       await undoSort(sessionId);
       handleReset();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to undo moves');
+      const msg = err instanceof Error ? err.message : 'Failed to undo moves';
+      // If the session is already gone, the undo likely already ran — reset to input
+      if (msg.includes('already undone') || msg.includes('not found')) {
+        setError('Undo already completed — your files have been restored. Returning to start.');
+        setTimeout(handleReset, 3000);
+      } else {
+        setError(msg);
+      }
     } finally {
       setUndoing(false);
     }
