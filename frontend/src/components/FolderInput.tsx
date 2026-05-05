@@ -35,9 +35,10 @@ export default function FolderInput({ onAnalyze, loading }: Props) {
     if (!window.showDirectoryPicker) return;
     try {
       const handle = await window.showDirectoryPicker();
-      // The API returns the folder name, not the full path.
-      // We set the name as a hint and let the user confirm/edit.
-      setFolderPath(handle.name);
+      // The File System Access API only exposes the folder name, not the full path.
+      // Prefix with ~ so the backend can expand it to the real home directory.
+      // The input stays editable so the user can correct it if needed.
+      setFolderPath(`~/${handle.name}`);
     } catch {
       // User cancelled — do nothing
     }
@@ -64,7 +65,7 @@ export default function FolderInput({ onAnalyze, loading }: Props) {
           id="folder-path"
           className="folder-input__field"
           type="text"
-          placeholder="/Users/you/Downloads"
+          placeholder="~/Downloads or /Users/you/Downloads"
           value={folderPath}
           onChange={(e) => setFolderPath(e.target.value)}
           disabled={loading}
