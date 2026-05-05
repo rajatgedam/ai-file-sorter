@@ -34,9 +34,14 @@ def _read_snippet(path: Path) -> str | None:
         return None
 
 
-def scan_directory(folder_path: str, include_content: bool = False) -> list[FileEntry]:
+def scan_directory(
+    folder_path: str,
+    include_content: bool = False,
+    recursive: bool = False,
+) -> list[FileEntry]:
     """
-    List all files (non-recursive) in folder_path.
+    List files in folder_path.
+    If recursive=True, scans all subdirectories using rglob.
     Returns a list of FileEntry objects.
     Raises ValueError if the path does not exist or is not a directory.
     """
@@ -49,7 +54,9 @@ def scan_directory(folder_path: str, include_content: bool = False) -> list[File
 
     entries: list[FileEntry] = []
 
-    for item in sorted(target.iterdir()):
+    iterator = sorted(target.rglob("*")) if recursive else sorted(target.iterdir())
+
+    for item in iterator:
         if not item.is_file():
             continue
 

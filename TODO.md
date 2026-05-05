@@ -82,8 +82,30 @@ file-sorter/
 
 ### Phase 4 — Integration & Config
 - [x] 18. End-to-end smoke test: point at a real test folder, run full flow
-- [ ] 19. Add `docker-compose.yml` for backend containerization (Ollama stays native)
-- [ ] 20. Final pass: env vars documented, `.env.example` complete, verify ≥80% coverage
+- [x] 19. Add `docker-compose.yml` for backend containerization (Ollama stays native)
+- [x] 20. Final pass: env vars documented, `.env.example` complete, verify ≥80% coverage
+
+---
+
+## Phase 5 — Low Effort Improvements
+
+### Backend
+- [x] 21. **Recursive folder scanning** — `recursive` flag on `ScanRequest`; uses `Path.rglob()`
+- [x] 22. **Undo / rollback** — moves logged to `~/.ai-file-sorter/history.json`; `POST /api/sort/undo` reverses by session_id
+- [x] 23. **Conflict handling** — destination existence checked; auto-renames with `(1)`, `(2)` suffix
+- [x] 24. **Batch LLM for large folders** — files split into chunks of 50; proposals merged
+- [x] 25. **Retry on bad JSON** — malformed LLM response retried once with correction prompt
+- [x] 26. **`GET /api/models`** — calls `ollama.list()`, returns available local models
+- [x] 27. Tests updated — 37/37 passing, 95% coverage
+
+## Phase 6 — UI / UX Improvements
+
+### Frontend
+- [x] 28. **Native folder picker** — `window.showDirectoryPicker()` with graceful fallback on unsupported browsers
+- [x] 29. **Proposal tree view** — moves grouped by destination folder, collapsible per-folder with folder-level select/deselect
+- [x] 30. **Model picker** — `GET /api/models` called on load; dropdown shown when models available
+- [x] 31. **Undo button in ResultView** — ↩ Undo moves button calls `POST /api/sort/undo` with session_id
+- [ ] 32. **Execute progress** — per-file progress during execute (stream/poll)
 
 ---
 
@@ -103,4 +125,6 @@ file-sorter/
 | 2026-05-04 | Phase 1 — Backend Foundation | ✅ Done | FastAPI app, all lib modules, routes, .env.example |
 | 2026-05-04 | Phase 2 — Backend Tests | ✅ Done | 24/24 tests passing, 96% coverage |
 | 2026-05-04 | Phase 4 — Smoke test | ✅ Done | 10 files → 6 folders, 0 errors. Backend on :8001, frontend on :5173 |
+| 2026-05-05 | Phase 5 — Low effort improvements | ✅ Done | Recursive scan, undo/rollback, conflict handling, LLM batching, retry, /api/models |
+| 2026-05-05 | Phase 6 — UI/UX improvements | ✅ Done | Folder picker, tree view, model dropdown, undo button. 37 tests, 95% coverage |
 

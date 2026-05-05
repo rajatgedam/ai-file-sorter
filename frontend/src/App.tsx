@@ -6,6 +6,7 @@ import ResultView from './components/ResultView';
 import {
   analyzeFolder,
   executeSort,
+  undoSort,
   type ExecuteResult,
   type ProposedMove,
   type SortProposal,
@@ -16,17 +17,18 @@ type Step = 'input' | 'proposal' | 'result';
 function App() {
   const [step, setStep] = useState<Step>('input');
   const [loading, setLoading] = useState(false);
+  const [undoing, setUndoing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [folderPath, setFolderPath] = useState('');
   const [proposal, setProposal] = useState<SortProposal | null>(null);
   const [result, setResult] = useState<ExecuteResult | null>(null);
 
-  async function handleAnalyze(path: string, includeContent: boolean) {
+  async function handleAnalyze(path: string, includeContent: boolean, recursive: boolean, model: string) {
     setError(null);
     setLoading(true);
     setFolderPath(path);
     try {
-      const data = await analyzeFolder(path, includeContent);
+      const data = await analyzeFolder(path, includeContent, recursive, model);
       setProposal(data);
       setStep('proposal');
     } catch (err) {
@@ -47,6 +49,19 @@ function App() {
       setError(err instanceof Error ? err.message : 'Failed to execute moves');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleUndo(sessionId: string) {
+    setError(null);
+    setUndoing(true);
+    try {
+      await undoSort(sessionId);
+      handleReset();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to undo moves');
+    } finally {
+      setUndoing(false);
     }
   }
 
@@ -82,7 +97,7 @@ function App() {
         )}
 
         {step === 'result' && result && (
-          <ResultView result={result} onReset={handleReset} />
+          <ResultView result={result} onReset={handleReset} onUndo={handleUndo} undoing={undoing} />
         )}
       </main>
     </div>

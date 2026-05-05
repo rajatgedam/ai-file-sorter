@@ -4,11 +4,12 @@ from pathlib import Path
 
 import ollama
 
-from src.types import FileEntry, ProposedMove
+from src.types import FileEntry, OllamaModel, ProposedMove
 
 DEFAULT_MODEL = "llama3"
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", DEFAULT_MODEL)
+BATCH_SIZE = 50  # max files per LLM call
 
 _SYSTEM_PROMPT = """You are a file organization assistant.
 Given a list of files and their metadata, propose a folder structure to organize them.
@@ -22,6 +23,11 @@ Rules:
 - do not rename files, only move them into sub-folders
 - every source file must appear exactly once in the output
 - output must be valid JSON only, no markdown fences, no commentary"""
+
+_RETRY_PROMPT = (
+    "Your previous response was not valid JSON. "
+    "Respond ONLY with the JSON array, no other text."
+)
 
 
 def _build_user_prompt(files: list[FileEntry]) -> str:
@@ -37,7 +43,6 @@ def _build_user_prompt(files: list[FileEntry]) -> str:
 
 def _parse_proposals(raw: str, base_dir: str) -> list[ProposedMove]:
     """Parse the LLM JSON response into ProposedMove objects."""
-    # Strip accidental markdown fences
     text = raw.strip()
     if text.startswith("```"):
         text = "\n".join(
@@ -53,7 +58,6 @@ def _parse_proposals(raw: str, base_dir: str) -> list[ProposedMove]:
 
     for item in data:
         destination = Path(item["destination"]).resolve()
-        # Safety: destination must stay inside the base directory
         if not str(destination).startswith(str(base)):
             raise ValueError(
                 f"Proposed destination escapes base directory: {destination}"
@@ -70,26 +74,61 @@ def _parse_proposals(raw: str, base_dir: str) -> list[ProposedMove]:
     return moves
 
 
+def _call_llm(client: ollama.Client, messages: list[dict]) -> str:
+    """Call the LLM with retry on malformed JSON."""
+    response = client.chat(model=OLLAMA_MODEL, messages=messages)
+    raw = response["message"]["content"]
+
+    # Attempt parse; retry once if malformed
+    try:
+        _parse_proposals(raw, "/")  # dummy base just to check JSON validity
+    except (json.JSONDecodeError, KeyError):
+        retry_messages = messages + [
+            {"role": "assistant", "content": raw},
+            {"role": "user", "content": _RETRY_PROMPT},
+        ]
+        response = client.chat(model=OLLAMA_MODEL, messages=retry_messages)
+        raw = response["message"]["content"]
+
+    return raw
+
+
 def propose_sort(files: list[FileEntry], base_dir: str) -> list[ProposedMove]:
     """
     Ask the LLM to propose folder moves for the given files.
+    Batches files in groups of BATCH_SIZE.
     Returns a list of ProposedMove objects.
-    Raises on LLM error or unparseable response.
     """
     if not files:
         return []
 
     client = ollama.Client(host=OLLAMA_HOST)
-    response = client.chat(
-        model=OLLAMA_MODEL,
-        messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": _build_user_prompt(files)},
-        ],
-    )
+    all_moves: list[ProposedMove] = []
 
-    raw = response["message"]["content"]
-    return _parse_proposals(raw, base_dir)
+    for i in range(0, len(files), BATCH_SIZE):
+        batch = files[i : i + BATCH_SIZE]
+        messages = [
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": _build_user_prompt(batch)},
+        ]
+        raw = _call_llm(client, messages)
+        all_moves.extend(_parse_proposals(raw, base_dir))
+
+    return all_moves
+
+
+def list_models() -> list[OllamaModel]:
+    """Return all locally available Ollama models."""
+    client = ollama.Client(host=OLLAMA_HOST)
+    response = client.list()
+    models = response.get("models", [])
+    return [
+        OllamaModel(
+            name=m.get("name", m.get("model", "")),
+            size=m.get("size"),
+        )
+        for m in models
+    ]
 
 
 def check_ollama_connection() -> bool:

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 class ScanRequest(BaseModel):
     folder_path: str
     include_content: bool = False
+    recursive: bool = False
 
 
 class FileEntry(BaseModel):
@@ -33,3 +34,17 @@ class ExecuteResult(BaseModel):
     moved: list[str]
     skipped: list[str]
     errors: list[str]
+    session_id: str | None = None
+
+
+class UndoRequest(BaseModel):
+    session_id: str
+
+
+class OllamaModel(BaseModel):
+    name: str
+    size: int | None = None
+
+
+class ModelsResponse(BaseModel):
+    models: list[OllamaModel]
