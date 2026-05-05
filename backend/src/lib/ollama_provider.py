@@ -22,6 +22,7 @@ Rules:
 - destination folders must be sub-folders of the original directory
 - do not rename files, only move them into sub-folders
 - every source file must appear exactly once in the output
+- folder names must use CamelCase (e.g. "BackupFiles", "PdfDocuments", "DevProjects")
 - output must be valid JSON only, no markdown fences, no commentary"""
 
 _RETRY_PROMPT = (
