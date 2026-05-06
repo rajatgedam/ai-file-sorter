@@ -21,3 +21,7 @@ htmlcov/
 # IDE
 .vscode/
 .idea/
+
+# Local notes
+notes.txt
+.gitignore
